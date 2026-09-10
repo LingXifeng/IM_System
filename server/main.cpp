@@ -1,133 +1,178 @@
-#include<iostream>
-#include<drogon/drogon.h>
+#include <iostream>
 #include <fstream>
+
 #include <json/json.h>
 
+#include <drogon/drogon.h>
+#include <drogon/orm/DbConfig.h>
+
+#include "controller/AuthController.h"
 
 using namespace drogon;
 using namespace drogon::orm;
 
-int main() {
-     std::ifstream configFile("config.json", std::ifstream::binary);
-    if (!configFile.is_open()) {
-        std::cerr << "无法打开 config.json" << std::endl;
+int main()
+{
+    
+    // 读取配置文件
+    
+
+    std::ifstream configFile(
+        "config/config.json",
+        std::ifstream::binary
+    );
+
+    if (!configFile.is_open())
+    {
+        std::cerr
+            << "无法打开 config.json"
+            << std::endl;
+
         return 1;
     }
 
     Json::Value root;
-    Json::CharReaderBuilder builder;
-    JSONCPP_STRING errs;
-    if (!Json::parseFromStream(builder, configFile, &root, &errs)) {
-        std::cerr << "解析 config.json 失败: " << errs << std::endl;
-        return 1;
-    }
-    const Json::Value& db = root["database"];
-    if (!db.isObject() ||
-        !db.isMember("host") || !db.isMember("port") ||
-        !db.isMember("database") || !db.isMember("user") ||
-        !db.isMember("password")) {
-        std::cerr << "config.json 中 database 配置不完整" << std::endl;
-        return 1;
-    }
-    try {
-    app().createDbClient(
-        "mysql",                                          // 数据库类型
-        db["host"].asString(),                             // 主机地址
-        static_cast<unsigned short>(db["port"].asInt()),   // 端口
-        db["database"].asString(),                         // 数据库名
-        db["user"].asString(),                             // 用户名
-        db["password"].asString(),                         // 密码
-        4,                                                 // 连接池大小
-        "utf8mb4",                                         // 字符集
-        "im_client",                                       // 客户端名称
-        false                                              // 不使用 FastDbClient
-    );
-} catch (const std::exception& e) {
-    std::cerr << "createDbClient 失败: " << e.what() << std::endl;
-    return 1;
-}
 
+    Json::CharReaderBuilder builder;
+
+    JSONCPP_STRING errs;
+
+    if (!Json::parseFromStream(
+            builder,
+            configFile,
+            &root,
+            &errs))
+    {
+        std::cerr
+            << "解析 config.json 失败: "
+            << errs
+            << std::endl;
+
+        return 1;
+    }
 
     
-    drogon::app().registerHandler("/hello",[](const drogon::HttpRequestPtr &req,std::function<void (const drogon::HttpResponsePtr &)> &&callback){
-        auto resp=drogon::HttpResponse::newHttpResponse();
-        resp->setBody("Hello, IM Server!");
-        callback(resp);
-    }, {drogon::Get});
-    drogon::app().registerHandler("/register",[](const drogon::HttpRequestPtr &req,std::function<void (const drogon::HttpResponsePtr &)> &&callback){
-        auto jsonPtr=req->getJsonObject();
-        if(!jsonPtr)
-        {
-            auto resp=drogon::HttpResponse::newHttpResponse();
-            resp->setStatusCode(drogon::k400BadRequest);
-            resp->setBody("Invalid JSON");
-            callback(resp);
-            return;
-        }
-        if (!(*jsonPtr).isMember("username") || !(*jsonPtr).isMember("password"))
-        {
-            auto resp=drogon::HttpResponse::newHttpResponse();
-            resp->setStatusCode(drogon::k400BadRequest);
-            resp->setBody("Missing username or password");
-            callback(resp);
-            return;
-        }
-        std::string username = (*jsonPtr)["username"].asString();
-        std::string password = (*jsonPtr)["password"].asString();
+    //  读取数据库配置
+    
 
+    const Json::Value& db =
+        root["database"];
 
-         auto clientPtr = app().getDbClient("im_client");
-            if (!clientPtr) {
-                auto resp = HttpResponse::newHttpResponse();
-                resp->setStatusCode(k500InternalServerError);
-                resp->setBody("Database client unavailable");
-                callback(resp);
-                return;
-            }
+    if (!db.isObject() ||
+        !db.isMember("name") ||
+        !db.isMember("host") ||
+        !db.isMember("port") ||
+        !db.isMember("database") ||
+        !db.isMember("user") ||
+        !db.isMember("password") ||
+        !db.isMember("connection_number") ||
+        !db.isMember("character_set") ||
+        !db.isMember("is_fast"))
+    {
+        std::cerr
+            << "config.json 中 database 配置不完整"
+            << std::endl;
 
-            
-            clientPtr->execSqlAsync(
-                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-                [callback](const Result &result) {
-                    Json::Value respJson;
-                    respJson["status"] = "success";
-                    respJson["message"] = "User registered successfully";
-                    auto resp = HttpResponse::newHttpJsonResponse(respJson);
-                    callback(resp);
-                },
-                [callback](const DrogonDbException &e) {
-                    Json::Value respJson;
-                    respJson["status"] = "error";
-                    respJson["message"] = std::string("Database error: ") + e.base().what();
-                    auto resp = HttpResponse::newHttpJsonResponse(respJson);
-                    resp->setStatusCode(k500InternalServerError);
-                    callback(resp);
-                },
-                username,   
-                password    
+        return 1;
+    }
+
+    
+    // 初始化数据库
+    
+    try
+    {
+        MysqlConfig mysqlConfig;
+
+        mysqlConfig.name =
+            db["name"].asString();
+
+        mysqlConfig.host =
+            db["host"].asString();
+
+        mysqlConfig.port =
+            static_cast<unsigned short>(
+                db["port"].asInt()
             );
-        },
+
+        mysqlConfig.databaseName =
+            db["database"].asString();
+
+        mysqlConfig.username =
+            db["user"].asString();
+
+        mysqlConfig.password =
+            db["password"].asString();
+
+        mysqlConfig.connectionNumber =
+            db["connection_number"].asInt();
+
+        mysqlConfig.characterSet =
+            db["character_set"].asString();
+
+        mysqlConfig.isFast =
+            db["is_fast"].asBool();
+        
+        mysqlConfig.timeout = 10.0;  // 秒
+
+        app().addDbClient(mysqlConfig);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr
+            << "addDbClient 失败: "
+            << e.what()
+            << std::endl;
+
+        return 1;
+    }
+
+    
+
+   
+
+// Hello 测试
+app().registerHandler(
+    "/hello",
+    [](const HttpRequestPtr& req,
+       std::function<void(const HttpResponsePtr&)>&& callback)
+    {
+        auto resp =
+            HttpResponse::newHttpResponse();
+
+        resp->setBody(
+            "Hello, IM Server!"
+        );
+
+        callback(resp);
+    },
+    {Get}
+);
+
+   
+    // 注册接口
+    
+
+    app().registerHandler(
+        "/register",
+
+        &AuthController::registerUser,
+
         {Post}
     );
-      
-        
-      /*   auto clientPtr = app().getDbClient("im_client");
-        if (!clientPtr) {
-            std::cerr << "获取 DbClient 失败" << std::endl;
-            app().quit();
-            return 0;
-        }
-         clientPtr->execSqlAsync(
-            "INSERT INTO users (username, password_hash) VALUES ('test', 'test_hash')",
-            [](const Result &result) {
-                std::cout << "插入成功" << std::endl;
-            },
-            [](const DrogonDbException &e) {
-                std::cerr << "插入失败: " << e.base().what() << std::endl;
-            }
-        ); */
+
     
-   drogon::app().addListener("0.0.0.0",8080);
+    // 启动服务器
+    
+
+    app().addListener(
+        "0.0.0.0",
+        8080
+    );
+
+    std::cout
+        << "IM Server starting on port 8080..."
+        << std::endl;
+
     app().run();
 
     return 0;

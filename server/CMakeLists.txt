@@ -3,11 +3,21 @@ cmake_minimum_required(VERSION 3.16)
 project(IMServer)
 
 set(CMAKE_CXX_STANDARD 17)
-
-add_executable(imserver
-        main.cpp
-    )
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Drogon CONFIG REQUIRED)
 
-target_link_libraries(imserver PRIVATE Drogon::Drogon)
+add_executable(imserver
+    main.cpp
+
+    controller/AuthController.cpp
+
+    service/AuthService.cpp
+
+    dao/UserDao.cpp
+)
+
+target_link_libraries(imserver
+    PRIVATE
+    Drogon::Drogon
+)

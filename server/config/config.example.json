@@ -1,10 +1,14 @@
 {
     "database": {
+        "name": "im_client",
         "host": "127.0.0.1",
         "port": 3306,
         "database": "im_system",
         "user": "im_user",
-        "password": "YOUR_PASSWORD"
+        "password": "数据库密码",
+        "connection_number": 4,
+        "character_set": "utf8mb4",
+        "is_fast": false
     },
     "redis": {
         "host": "127.0.0.1",
