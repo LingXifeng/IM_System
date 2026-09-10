@@ -1,0 +1,10 @@
+build/
+server/build/
+config/config.json
+server/config/config.json
+*.log
+server/db.md
+uploads/tmp/
+server/uploads/tmp/
+.vscode/
+.idea/

@@ -1,0 +1,18 @@
+{
+    "database": {
+        "host": "127.0.0.1",
+        "port": 3306,
+        "database": "im_system",
+        "user": "im_user",
+        "password": "YOUR_PASSWORD"
+    },
+    "redis": {
+        "host": "127.0.0.1",
+        "port": 6379,
+        "password": ""
+    },
+    "server": {
+        "host": "0.0.0.0",
+        "port": 8080
+    }
+}
