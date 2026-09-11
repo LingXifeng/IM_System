@@ -8,12 +8,20 @@ class AuthService
 {
 public:
     using SuccessCallback = std::function<void()>;
-    using ErrorCallback =
-        std::function<void(const std::string&)>;
+    using ErrorCallback = std::function<void(const std::string&)>;
 
     void registerUser(
         const std::string& username,
         const std::string& password,
         SuccessCallback success,
+        ErrorCallback error);
+
+    using LoginSuccessCallback =
+        std::function<void()>;
+
+    void loginUser(
+        const std::string& username,
+        const std::string& password,
+        LoginSuccessCallback success,
         ErrorCallback error);
 };

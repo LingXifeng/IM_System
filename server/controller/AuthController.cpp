@@ -109,3 +109,84 @@ void AuthController::registerUser(
         }
     );
 }
+
+void AuthController::loginUser(
+    const HttpRequestPtr& req,
+    std::function<void(const HttpResponsePtr&)>&& callback)
+{
+    auto jsonPtr = req->getJsonObject();
+
+    if (!jsonPtr)
+    {
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setStatusCode(k400BadRequest);
+        resp->setBody("Invalid JSON");
+        callback(resp);
+        return;
+    }
+
+    if (!jsonPtr->isMember("username") ||
+        !jsonPtr->isMember("password"))
+    {
+        auto resp = HttpResponse::newHttpResponse();
+        resp->setStatusCode(k400BadRequest);
+        resp->setBody("Missing username or password");
+        callback(resp);
+        return;
+    }
+
+    std::string username =
+        (*jsonPtr)["username"].asString();
+
+    std::string password =
+        (*jsonPtr)["password"].asString();
+
+    auto callbackPtr =
+        std::make_shared<
+            std::function<void(const HttpResponsePtr&)>
+        >(std::move(callback));
+
+    auto service =
+        std::make_shared<AuthService>();
+
+    service->loginUser(
+        username,
+        password,
+
+        [callbackPtr]()
+        {
+            Json::Value respJson;
+            respJson["status"] = "success";
+            respJson["message"] = "Login successful";
+
+            auto resp =
+                HttpResponse::newHttpJsonResponse(respJson);
+
+            (*callbackPtr)(resp);
+        },
+
+        [callbackPtr](
+            const std::string& errorMessage)
+        {
+            Json::Value respJson;
+            respJson["status"] = "error";
+            respJson["message"] = errorMessage;
+
+            auto resp =
+                HttpResponse::newHttpJsonResponse(respJson);
+
+            if (errorMessage == "User not found" ||
+                errorMessage == "Invalid username or password")
+            {
+                resp->setStatusCode(k401Unauthorized);
+            }
+            else
+            {
+                resp->setStatusCode(
+                    k500InternalServerError);
+            }
+
+            (*callbackPtr)(resp);
+        }
+    );
+}

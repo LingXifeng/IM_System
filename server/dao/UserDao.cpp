@@ -55,3 +55,60 @@ void UserDao::createUser(
         passwordHash
     );
 }
+
+void UserDao::findUser(
+    const std::string& username,
+    LoginSuccessCallback success,
+    ErrorCallback error)
+{
+    auto clientPtr = app().getDbClient("im_client");
+
+    if (!clientPtr)
+    {
+        if (error)
+        {
+            error("Database client unavailable");
+        }
+        return;
+    }
+
+    clientPtr->execSqlAsync(
+        "SELECT password_hash "
+        "FROM users "
+        "WHERE username = ? "
+        "LIMIT 1",
+
+        [success, error](const Result& result)
+        {
+            if (result.empty())
+            {
+                if (error)
+                {
+                    error("User not found");
+                }
+                return;
+            }
+
+            std::string passwordHash =
+                result[0]["password_hash"].as<std::string>();
+
+            if (success)
+            {
+                success(passwordHash);
+            }
+        },
+
+        [error](const DrogonDbException& e)
+        {
+            if (error)
+            {
+                error(
+                    std::string("Database error: ") +
+                    e.base().what()
+                );
+            }
+        },
+
+        username
+    );
+}

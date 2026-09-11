@@ -15,4 +15,12 @@ public:
         const std::string& passwordHash,
         SuccessCallback success,
         ErrorCallback error);
+
+    using LoginSuccessCallback =
+        std::function<void(const std::string& passwordHash)>;
+
+    void findUser(
+        const std::string& username,
+        LoginSuccessCallback success,
+        ErrorCallback error);
 };

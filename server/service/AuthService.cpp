@@ -57,3 +57,61 @@ void AuthService::registerUser(
         }
     );
 }
+
+void AuthService::loginUser(
+    const std::string& username,
+    const std::string& password,
+    LoginSuccessCallback success,
+    ErrorCallback error)
+{
+    if (username.empty())
+    {
+        if (error)
+        {
+            error("Username cannot be empty");
+        }
+        return;
+    }
+
+    if (password.empty())
+    {
+        if (error)
+        {
+            error("Password cannot be empty");
+        }
+        return;
+    }
+
+    auto dao = std::make_shared<UserDao>();
+
+    dao->findUser(
+        username,
+
+        [password, success, error](
+            const std::string& passwordHash)
+        {
+            // V1 暂时使用明文密码
+            if (password != passwordHash)
+            {
+                if (error)
+                {
+                    error("Invalid username or password");
+                }
+                return;
+            }
+
+            if (success)
+            {
+                success();
+            }
+        },
+
+        [error](const std::string& errorMessage)
+        {
+            if (error)
+            {
+                error(errorMessage);
+            }
+        }
+    );
+}

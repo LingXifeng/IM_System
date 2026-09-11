@@ -154,9 +154,13 @@ app().registerHandler(
 
     app().registerHandler(
         "/register",
-
         &AuthController::registerUser,
+        {Post}
+    );
 
+    app().registerHandler(
+        "/login",
+        &AuthController::loginUser,
         {Post}
     );
 
