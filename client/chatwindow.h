@@ -4,6 +4,8 @@
 #include <QWidget>
 #include <QString>
 
+#include "network/WebSocketClient.h"
+
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class ChatWindow;
@@ -16,15 +18,20 @@ class ChatWindow : public QWidget
 
 public:
     explicit ChatWindow(
-        const QString& username,
+        const QString &username,
         QWidget *parent = nullptr
         );
 
     ~ChatWindow() override;
 
+private slots:
+    void onSendClicked();
+
 private:
     Ui::ChatWindow *ui;
     QString username;
+
+    WebSocketClient *webSocketClient;
 };
 
 #endif // CHATWINDOW_H

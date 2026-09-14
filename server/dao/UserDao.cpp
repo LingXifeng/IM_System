@@ -112,3 +112,63 @@ void UserDao::findUser(
         username
     );
 }
+
+void UserDao::findUserId(
+    const std::string& username,
+    UserIdSuccessCallback success,
+    ErrorCallback error)
+{
+    auto clientPtr =
+        app().getDbClient("im_client");
+
+    if (!clientPtr)
+    {
+        if (error)
+        {
+            error("Database client unavailable");
+        }
+
+        return;
+    }
+
+    clientPtr->execSqlAsync(
+        "SELECT id "
+        "FROM users "
+        "WHERE username = ? "
+        "LIMIT 1",
+
+        [success, error](const Result& result)
+        {
+            if (result.empty())
+            {
+                if (error)
+                {
+                    error("User not found");
+                }
+
+                return;
+            }
+
+            long long userId =
+                result[0]["id"].as<long long>();
+
+            if (success)
+            {
+                success(userId);
+            }
+        },
+
+        [error](const DrogonDbException& e)
+        {
+            if (error)
+            {
+                error(
+                    std::string("Database error: ")
+                    + e.base().what()
+                );
+            }
+        },
+
+        username
+    );
+}

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 
 project(client LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network WebSockets)
 
 qt_standard_project_setup()
 
@@ -13,6 +13,7 @@ qt_add_executable(client
     mainwindow.h
     mainwindow.ui
     chatwindow.h chatwindow.cpp chatwindow.ui
+    network/websocketclient.h network/websocketclient.cpp
 )
 
 target_link_libraries(client
@@ -20,6 +21,7 @@ target_link_libraries(client
         Qt::Core
         Qt::Widgets
         Qt::Network
+        Qt::WebSockets
 )
 
 install(TARGETS client
