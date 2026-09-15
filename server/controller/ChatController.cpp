@@ -38,6 +38,133 @@ void ChatController::handleNewConnection(
     wsConn->send(
         "WebSocket connected as " + username
     );
+
+    // 1. 根据用户名查找用户 ID
+    userDao.findUserId(
+        username,
+
+        [this, wsConn, username](long long userId)
+        {
+            // 2. 查询该用户的离线消息
+            messageDao.getOfflineMessages(
+                userId,
+
+                [this, wsConn, username]
+                (const std::vector<Message>& messages)
+                {
+                    // 没有离线消息
+                    if (messages.empty())
+                    {
+                        std::cout
+                            << "[WebSocket] No offline messages for "
+                            << username
+                            << std::endl;
+
+                        return;
+                    }
+
+                    for (const auto& message : messages)
+                    {
+                        // 3. 根据 senderId 查找发送者用户名
+                        userDao.findUsernameById(
+                            message.senderId,
+
+                            [this, wsConn, message]
+                            (const std::string& senderUsername)
+                            {
+                                Json::Value response;
+
+                                response["type"] =
+                                    "message";
+
+                                response["from"] =
+                                    senderUsername;
+
+                                response["content"] =
+                                    message.content;
+
+                                response["messageId"] =
+                                    static_cast<Json::Int64>(
+                                        message.id
+                                    );
+
+                                Json::StreamWriterBuilder
+                                    writer;
+
+                                // 4. 推送给重新上线的用户
+                                wsConn->send(
+                                    Json::writeString(
+                                        writer,
+                                        response
+                                    )
+                                );
+
+                                // 5. 标记为已投递
+                                messageDao.markAsDelivered(
+                                    message.id,
+
+                                    [message]()
+                                    {
+                                        std::cout
+                                            << "[MessageDao] "
+                                               "Offline message "
+                                               "delivered: "
+                                            << message.id
+                                            << std::endl;
+                                    },
+
+                                    [message](
+                                        const std::string& error)
+                                    {
+                                        std::cout
+                                            << "[MessageDao] "
+                                               "Mark delivered failed "
+                                            << message.id
+                                            << ": "
+                                            << error
+                                            << std::endl;
+                                    }
+                                );
+                            },
+
+                            [message](const std::string& error)
+                            {
+                                std::cout
+                                    << "[UserDao] "
+                                       "Find sender username failed "
+                                    << message.senderId
+                                    << ": "
+                                    << error
+                                    << std::endl;
+                            }
+                        );
+                    }
+                },
+
+                [username](const std::string& error)
+                {
+                    std::cout
+                        << "[MessageDao] "
+                           "Get offline messages failed for "
+                        << username
+                        << ": "
+                        << error
+                        << std::endl;
+                }
+            );
+        },
+
+        [username](const std::string& error)
+        {
+            std::cout
+                << "[UserDao] "
+                   "Find user ID failed for "
+                << username
+                << ": "
+                << error
+                << std::endl;
+        }
+    );
 }
 
 void ChatController::handleNewMessage(
@@ -88,40 +215,173 @@ void ChatController::handleNewMessage(
         return;
     }
 
-std::string from =
-    root["from"].asString();
+    std::string from =
+        root["from"].asString();
 
-std::string to =
-    root["to"].asString();
+    std::string to =
+        root["to"].asString();
 
-std::string content =
-    root["content"].asString();
+    std::string content =
+        root["content"].asString();
 
-userDao.findUserId(
-    from,
 
-    [this, to, content, from](long long senderId)
-    {
-        userDao.findUserId(
-            to,
+    // 1. 查询发送者 ID
+    userDao.findUserId(
+        from,
 
-            [this, from, to, content, senderId]
-            (long long receiverId)
-            {
-                messageDao.saveMessage(
-                    senderId,
-                    receiverId,
-                    content,
+        [this, to, content, from, wsConn]
+        (long long senderId)
+        {
+            // 2. 查询接收者 ID
+            userDao.findUserId(
+                to,
 
-                    [this, from, to, content]()
-                    {
-                        std::lock_guard<std::mutex>
-                            lock(mutex);
+                [this, from, to, content,
+                 senderId, wsConn]
+                (long long receiverId)
+                {
+                    // 3. 判断两人是否为好友
+                    friendDao.isFriend(
+                        senderId,
+                        receiverId,
 
-                        auto it =
-                            onlineUsers.find(to);
+                        [this, from, to, content,
+                         senderId, receiverId,
+                         wsConn]
+                        (bool isFriend)
+                        {
+                            // 不是好友
+                            if (!isFriend)
+                            {
+                                Json::Value response;
 
-                        if (it == onlineUsers.end())
+                                response["type"] =
+                                    "error";
+
+                                response["message"] =
+                                    "你们不是好友，无法发送消息";
+
+                                Json::StreamWriterBuilder
+                                    writer;
+
+                                wsConn->send(
+                                    Json::writeString(
+                                        writer,
+                                        response
+                                    )
+                                );
+
+                                std::cout
+                                    << "[WebSocket] "
+                                    << from
+                                    << " -> "
+                                    << to
+                                    << " rejected: "
+                                    << "not friends"
+                                    << std::endl;
+
+                                return;
+                            }
+
+
+                            // 4. 是好友，保存消息
+                            messageDao.saveMessage(
+                                senderId,
+                                receiverId,
+                                content,
+
+                                [this, from, to, content]()
+                                {
+                                    std::lock_guard<std::mutex>
+                                        lock(mutex);
+
+                                    auto it =
+                                        onlineUsers.find(to);
+
+                                    // 5. 对方不在线
+                                    if (it == onlineUsers.end())
+                                    {
+                                        Json::Value response;
+
+                                        response["type"] =
+                                            "error";
+
+                                        response["message"] =
+                                            "User is offline";
+
+                                        Json::StreamWriterBuilder
+                                            writer;
+
+                                        auto senderIt =
+                                            onlineUsers.find(from);
+
+                                        if (senderIt !=
+                                            onlineUsers.end())
+                                        {
+                                            senderIt->second->send(
+                                                Json::writeString(
+                                                    writer,
+                                                    response
+                                                )
+                                            );
+                                        }
+
+                                        return;
+                                    }
+
+
+                                    // 6. 对方在线，转发消息
+                                    Json::Value response;
+
+                                    response["type"] =
+                                        "message";
+
+                                    response["from"] =
+                                        from;
+
+                                    response["to"] =
+                                        to;
+
+                                    response["content"] =
+                                        content;
+
+                                    Json::StreamWriterBuilder
+                                        writer;
+
+                                    it->second->send(
+                                        Json::writeString(
+                                            writer,
+                                            response
+                                        )
+                                    );
+
+                                    std::cout
+                                        << "[WebSocket] "
+                                        << "Saved and forwarded: "
+                                        << from
+                                        << " -> "
+                                        << to
+                                        << std::endl;
+                                },
+
+                                [from, to]
+                                (const std::string& error)
+                                {
+                                    std::cout
+                                        << "[MessageDao] "
+                                        << "Save failed: "
+                                        << from
+                                        << " -> "
+                                        << to
+                                        << " : "
+                                        << error
+                                        << std::endl;
+                                }
+                            );
+                        },
+
+                        [wsConn]
+                        (const std::string& error)
                         {
                             Json::Value response;
 
@@ -129,96 +389,47 @@ userDao.findUserId(
                                 "error";
 
                             response["message"] =
-                                "User is offline";
+                                error;
 
                             Json::StreamWriterBuilder
                                 writer;
 
-                            auto senderIt =
-                                onlineUsers.find(from);
-
-                            if (senderIt !=
-                                onlineUsers.end())
-                            {
-                                senderIt->second->send(
-                                    Json::writeString(
-                                        writer,
-                                        response
-                                    )
-                                );
-                            }
-
-                            return;
+                            wsConn->send(
+                                Json::writeString(
+                                    writer,
+                                    response
+                                )
+                            );
                         }
+                    );
+                },
 
-                        Json::Value response;
+                [to]
+                (const std::string& error)
+                {
+                    std::cout
+                        << "[UserDao] "
+                        << "Receiver lookup failed: "
+                        << to
+                        << " : "
+                        << error
+                        << std::endl;
+                }
+            );
+        },
 
-                        response["type"] =
-                            "message";
-
-                        response["from"] =
-                            from;
-
-                        response["to"] =
-                            to;
-
-                        response["content"] =
-                            content;
-
-                        Json::StreamWriterBuilder
-                            writer;
-
-                        it->second->send(
-                            Json::writeString(
-                                writer,
-                                response
-                            )
-                        );
-
-                        std::cout
-                            << "[WebSocket] Saved and forwarded: "
-                            << from
-                            << " -> "
-                            << to
-                            << std::endl;
-                    },
-
-                    [from, to](const std::string& error)
-                    {
-                        std::cout
-                            << "[MessageDao] Save failed: "
-                            << from
-                            << " -> "
-                            << to
-                            << " : "
-                            << error
-                            << std::endl;
-                    }
-                );
-            },
-
-            [to](const std::string& error)
-            {
-                std::cout
-                    << "[UserDao] Receiver lookup failed: "
-                    << to
-                    << " : "
-                    << error
-                    << std::endl;
-            }
-        );
-    },
-
-    [from](const std::string& error)
-    {
-        std::cout
-            << "[UserDao] Sender lookup failed: "
-            << from
-            << " : "
-            << error
-            << std::endl;
-    }
-);
+        [from]
+        (const std::string& error)
+        {
+            std::cout
+                << "[UserDao] "
+                << "Sender lookup failed: "
+                << from
+                << " : "
+                << error
+                << std::endl;
+        }
+    );
 }
 
 void ChatController::handleConnectionClosed(

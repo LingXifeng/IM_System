@@ -3,6 +3,7 @@
 #include <drogon/drogon.h>
 #include <functional>
 #include <string>
+#include <vector>
 
 class UserDao
 {
@@ -35,6 +36,22 @@ public:
     void findUserId(
         const std::string& username,
         UserIdSuccessCallback success,
+        ErrorCallback error
+    );
+    using UsernameSuccessCallback =
+    std::function<void(const std::string& username)>;
+
+    void findUsernameById(
+        long long userId,
+        UsernameSuccessCallback success,
+        ErrorCallback error
+    );
+    using SearchUserCallback =
+    std::function<void(const std::vector<std::string>&)>;
+
+    void searchUsers(
+        const std::string& keyword,
+        SearchUserCallback success,
         ErrorCallback error
     );
 };

@@ -12,11 +12,14 @@ add_executable(imserver
 
     controller/AuthController.cpp
     controller/ChatController.cpp
+    controller/FriendController.cpp
+    controller/UserController.cpp
 
     service/AuthService.cpp
 
     dao/UserDao.cpp
     dao/MessageDao.cpp
+    dao/FriendDao.cpp
 )
 
 target_link_libraries(imserver

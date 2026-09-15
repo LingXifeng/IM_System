@@ -26,10 +26,16 @@ public:
 
 private slots:
     void onSendClicked();
+    void onAddFriendClicked();
+    void onDeleteFriendClicked();
+    void onSearchClicked();
 
 private:
+    void loadFriendList();
+
     Ui::ChatWindow *ui;
     QString username;
+    QString currentFriend;
 
     WebSocketClient *webSocketClient;
 };

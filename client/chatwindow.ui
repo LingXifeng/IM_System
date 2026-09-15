@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>500</height>
+    <width>900</width>
+    <height>600</height>
    </rect>
   </property>
 
@@ -18,35 +18,106 @@
 
   <layout class="QHBoxLayout" name="mainLayout">
 
-   <!-- 左侧好友列表 -->
+   <!-- 左侧 -->
    <item>
-    <widget class="QListWidget" name="friendList">
-     <property name="minimumSize">
-      <size>
-       <width>180</width>
-       <height>0</height>
-      </size>
-     </property>
-    </widget>
+    <layout class="QVBoxLayout" name="friendLayout">
+
+     <!-- 搜索框 -->
+     <item>
+      <layout class="QHBoxLayout" name="searchLayout">
+
+       <item>
+        <widget class="QLineEdit" name="searchEdit">
+         <property name="placeholderText">
+          <string>搜索用户名</string>
+         </property>
+        </widget>
+       </item>
+
+       <item>
+        <widget class="QPushButton" name="searchButton">
+         <property name="text">
+          <string>搜索</string>
+         </property>
+        </widget>
+       </item>
+
+      </layout>
+     </item>
+
+     <!-- 搜索结果 -->
+     <item>
+      <widget class="QListWidget" name="searchResultList">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>120</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+
+     <!-- 好友列表 -->
+     <item>
+      <widget class="QListWidget" name="friendList">
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+
+     <!-- 添加好友 -->
+     <item>
+      <widget class="QPushButton" name="addFriendButton">
+       <property name="text">
+        <string>添加好友</string>
+       </property>
+      </widget>
+     </item>
+
+     <!-- 删除好友 -->
+     <item>
+      <widget class="QPushButton" name="deleteFriendButton">
+       <property name="text">
+        <string>删除好友</string>
+       </property>
+      </widget>
+     </item>
+
+     <!-- 刷新好友 -->
+     <item>
+      <widget class="QPushButton" name="refreshFriendButton">
+       <property name="text">
+        <string>刷新好友</string>
+       </property>
+      </widget>
+     </item>
+
+    </layout>
    </item>
+
 
    <!-- 右侧聊天区域 -->
    <item>
     <layout class="QVBoxLayout" name="chatLayout">
 
-     <!-- 聊天对象 -->
+     <!-- 聊天标题 -->
      <item>
       <widget class="QLabel" name="chatTitleLabel">
        <property name="text">
         <string>请选择一个好友</string>
        </property>
+
        <property name="alignment">
         <set>Qt::AlignCenter</set>
        </property>
       </widget>
      </item>
 
-     <!-- 消息显示区域 -->
+     <!-- 消息显示 -->
      <item>
       <widget class="QTextEdit" name="messageView">
        <property name="readOnly">
@@ -55,7 +126,7 @@
       </widget>
      </item>
 
-     <!-- 输入框 + 发送按钮 -->
+     <!-- 输入区域 -->
      <item>
       <layout class="QHBoxLayout" name="inputLayout">
 
@@ -82,7 +153,6 @@
    </item>
 
   </layout>
-
  </widget>
 
  <resources/>

@@ -172,3 +172,100 @@ void UserDao::findUserId(
         username
     );
 }
+
+ void UserDao::findUsernameById(
+    long long userId,
+    UsernameSuccessCallback success,
+    ErrorCallback error)
+{
+    auto clientPtr =
+        app().getDbClient("im_client");
+
+    if (!clientPtr)
+    {
+        if (error)
+        {
+            error("Database client unavailable");
+        }
+
+        return;
+    }
+
+    clientPtr->execSqlAsync(
+        "SELECT username "
+        "FROM users "
+        "WHERE id = ? "
+        "LIMIT 1",
+
+        [success, error](const Result& result)
+        {
+            if (result.empty())
+            {
+                if (error)
+                {
+                    error("User not found");
+                }
+
+                return;
+            }
+
+            std::string username =
+                result[0]["username"].as<std::string>();
+
+            if (success)
+            {
+                success(username);
+            }
+        },
+
+        [error](const DrogonDbException& e)
+        {
+            if (error)
+            {
+                error(
+                    std::string("Database error: ")
+                    + e.base().what()
+                );
+            }
+        },
+
+        userId
+    );
+}
+
+void UserDao::searchUsers(
+    const std::string& keyword,
+    SearchUserCallback success,
+    ErrorCallback error)
+{
+    auto dbClient =
+    drogon::app().getDbClient("im_client");
+
+    dbClient->execSqlAsync(
+        "SELECT username "
+        "FROM users "
+        "WHERE username LIKE ? "
+        "LIMIT 20",
+
+        [success](const drogon::orm::Result &result)
+        {
+            std::vector<std::string> users;
+
+            for (const auto &row : result)
+            {
+                users.push_back(
+                    row["username"].as<std::string>()
+                );
+            }
+
+            success(users);
+        },
+
+        [error](const drogon::orm::DrogonDbException &e)
+        {
+            error(e.base().what());
+        },
+
+        "%" + keyword + "%"
+    );
+}

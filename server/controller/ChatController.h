@@ -3,6 +3,7 @@
 #include <drogon/WebSocketController.h>
 #include "../dao/UserDao.h"
 #include "../dao/MessageDao.h"
+#include "../dao/FriendDao.h"
 
 #include <mutex>
 #include <string>
@@ -41,4 +42,5 @@ private:
 
     UserDao userDao;
     MessageDao messageDao;
+    FriendDao friendDao;
 };

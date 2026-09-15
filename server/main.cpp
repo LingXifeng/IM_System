@@ -7,6 +7,8 @@
 #include <drogon/orm/DbConfig.h>
 
 #include "controller/AuthController.h"
+#include "controller/FriendController.h"
+#include "controller/UserController.h"
 
 using namespace drogon;
 using namespace drogon::orm;
@@ -162,6 +164,29 @@ app().registerHandler(
         "/login",
         &AuthController::loginUser,
         {Post}
+    );
+    app().registerHandler(
+    "/friends/add",
+    &FriendController::addFriend,
+    {Post}
+    );
+
+    app().registerHandler(
+        "/friends/delete",
+        &FriendController::deleteFriend,
+        {Post}
+    );
+
+    app().registerHandler(
+        "/friends/list",
+        &FriendController::getFriendList,
+        {Get}
+    );
+
+    app().registerHandler(
+    "/users/search",
+    &UserController::searchUsers,
+    {Get}
     );
 
     
