@@ -15,4 +15,8 @@ struct Message
     int status = 0;
 
     std::string createdAt;
+
+    // 消息过期时间
+    // 普通消息为空
+    std::string expireAt;
 };

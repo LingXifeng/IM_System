@@ -5,6 +5,7 @@
 
 #include <drogon/drogon.h>
 #include <drogon/orm/DbConfig.h>
+#include <drogon/utils/Utilities.h>
 
 #include "controller/AuthController.h"
 #include "controller/FriendController.h"
@@ -201,6 +202,50 @@ app().registerHandler(
     std::cout
         << "IM Server starting on port 8080..."
         << std::endl;
+    // 定期清理已经过期的消息
+    app().getLoop()->runEvery(
+        10.0,
+        []()
+        {
+            auto dbClient =
+                app().getDbClient("im_client");
+
+            if (!dbClient)
+            {
+                std::cerr
+                    << "[TTL] Database client unavailable"
+                    << std::endl;
+
+                return;
+            }
+
+            dbClient->execSqlAsync(
+                "DELETE FROM messages "
+                "WHERE expire_at IS NOT NULL "
+                "AND expire_at <= NOW()",
+
+                [](const drogon::orm::Result& result)
+                {
+                    if (result.affectedRows() > 0)
+                    {
+                        std::cout
+                            << "[TTL] Deleted "
+                            << result.affectedRows()
+                            << " expired message(s)"
+                            << std::endl;
+                    }
+                },
+
+                [](const drogon::orm::DrogonDbException& e)
+                {
+                    std::cerr
+                        << "[TTL] Cleanup failed: "
+                        << e.base().what()
+                        << std::endl;
+                }
+            );
+        }
+    );
 
     app().run();
 
